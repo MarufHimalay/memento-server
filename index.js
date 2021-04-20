@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const MongoClient = require('mongodb').MongoClient;
+const { ObjectId } = require('bson');
 require('dotenv').config()
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.vo54x.mongodb.net/${process.env.DB_NAME}?retryWrites=true&w=majority`;
@@ -19,6 +20,7 @@ const port = 5055;
 client.connect(err => {
     const orderCollection = client.db("Memento").collection("orders");
     const userCollection = client.db("Memento").collection("users");
+    const adminsCollection = client.db("Memento").collection("admins");
     const reviewsCollection = client.db("Memento").collection("reviews");
     const productsCollection = client.db("Memento").collection("products");
 
@@ -36,7 +38,15 @@ client.connect(err => {
             .then(result => {
                 console.log('data added successfully');
                 res.send("data added successfully");
+                res.redirect("/order")
             })
+    })
+    app.delete('/delete/:id', (req, res) => {
+        productsCollection.deleteOne({_id: ObjectId(req.params.id)})
+        .then( result => { 
+            console.log(result);
+            res.send(result.deletedCount>0)
+        })
     })
     app.post("/review", (req, res) => {
         const order = req.body;
@@ -46,17 +56,9 @@ client.connect(err => {
                 res.send("data added successfully");
             })
     })
-    app.post("/users", (req, res) => {
-        const user = req.body;
-        userCollection.insertOne(user)
-            .then(result => {
-                console.log('data added successfully');
-                res.send("data added successfully");
-            })
-    })
     app.post("/makeAdmin", (req, res) => {
         const user = req.body;
-        userCollection.insertOne(user)
+        adminsCollection.insertOne(user)
             .then(result => {
                 console.log('data added successfully');
                 res.send("data added successfully");
@@ -68,16 +70,16 @@ client.connect(err => {
             .toArray((err, documents) => {
                 res.send(documents);
             })
-    })
-    app.get('/reviews', (req, res) => {
-        reviewsCollection.find({})
+        })
+    app.get('/admins/:email', (req, res) => {
+        const email = req.params.email
+        adminsCollection.find({email:email})
             .toArray((err, documents) => {
                 res.send(documents);
             })
     })
-    
-    app.get('/admins', (req, res) => {
-        userCollection.find({role:"admin"})
+    app.get('/reviews', (req, res) => {
+        reviewsCollection.find({})
             .toArray((err, documents) => {
                 res.send(documents);
             })
@@ -91,7 +93,7 @@ client.connect(err => {
     })
 
     app.patch('/update/:id', (req, res) => {
-        productCollection.updateOne({ _id: ObjectId(req.params.id) },
+        orderCollection.updateOne({ _id: ObjectId(req.params.id) },
             {
                 $set: {status: req.body.status}
             })
